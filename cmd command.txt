@@ -1,0 +1,2 @@
+cd /d D:\project\gym-membership-system
+run.bat
