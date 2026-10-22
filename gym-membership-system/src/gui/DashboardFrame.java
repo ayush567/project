@@ -29,6 +29,7 @@ public class DashboardFrame extends JFrame {
     private LockerManagementPanel lockerPanel;
     private UpdateStatusPanel statusPanel;
     private RenewMembershipPanel renewPanel;
+    private AttendancePanel attendancePanel;
 
     public DashboardFrame() {
         super("GYM MEMBERSHIP TRACKING AND MANAGEMENT SYSTEM");
@@ -75,6 +76,7 @@ public class DashboardFrame extends JFrame {
         JButton btnLocker = createNavButton("Locker Management");
         JButton btnStatus = createNavButton("Update Status");
         JButton btnRenew = createNavButton("Renew Membership");
+        JButton btnAttendance = createNavButton("Attendance");
 
         navPanel.add(btnRegister);
         navPanel.add(btnView);
@@ -82,6 +84,7 @@ public class DashboardFrame extends JFrame {
         navPanel.add(btnLocker);
         navPanel.add(btnStatus);
         navPanel.add(btnRenew);
+        navPanel.add(btnAttendance);
 
         JPanel topContainer = new JPanel(new BorderLayout());
         topContainer.setBackground(Color.WHITE);
@@ -100,6 +103,7 @@ public class DashboardFrame extends JFrame {
         lockerPanel = new LockerManagementPanel(gymService);
         statusPanel = new UpdateStatusPanel(gymService);
         renewPanel = new RenewMembershipPanel(gymService);
+        attendancePanel = new AttendancePanel(gymService);
 
         centerCardPanel.add(registerPanel, "REGISTER");
         centerCardPanel.add(viewPanel, "VIEW");
@@ -107,6 +111,7 @@ public class DashboardFrame extends JFrame {
         centerCardPanel.add(lockerPanel, "LOCKER");
         centerCardPanel.add(statusPanel, "STATUS");
         centerCardPanel.add(renewPanel, "RENEW");
+        centerCardPanel.add(attendancePanel, "ATTENDANCE");
 
         add(centerCardPanel, BorderLayout.CENTER);
 
@@ -131,6 +136,10 @@ public class DashboardFrame extends JFrame {
         btnRenew.addActionListener(e -> {
             renewPanel.refreshDueTable();
             showCard("RENEW");
+        });
+        btnAttendance.addActionListener(e -> {
+            attendancePanel.refreshPanel();
+            showCard("ATTENDANCE");
         });
 
         // Default to Register card

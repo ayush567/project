@@ -167,8 +167,18 @@ public class RenewMembershipPanel extends JPanel {
         if (id.isEmpty()) return;
         try {
             Member m = gymService.getMember(id);
+            if (m.isOccasional()) {
+                lblMemberName.setText(m.getFullName() + " (Occasional)");
+                lblCurrentExpiry.setText("N/A (Occasional)");
+                lblCalculatedRenewalFee.setText("N/A");
+                txtAmountPaid.setText("");
+                JOptionPane.showMessageDialog(this,
+                        "Member " + id + " is on an Occasional (pay-as-you-go) plan.\nOccasional members have no expiry date and no renewal cycle.",
+                        "Renewal Not Applicable", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
             lblMemberName.setText(m.getFullName());
-            lblCurrentExpiry.setText(m.getExpiryDate().toString());
+            lblCurrentExpiry.setText(m.getExpiryDate() != null ? m.getExpiryDate().toString() : "N/A");
             cmbNewDuration.setSelectedItem(m.getMembership().getDuration());
             updateRenewalFee();
         } catch (GymException e) {
@@ -183,6 +193,12 @@ public class RenewMembershipPanel extends JPanel {
         String id = txtMemberId.getText().trim();
         if (id.isEmpty()) return;
         try {
+            Member m = gymService.getMember(id);
+            if (m.isOccasional()) {
+                lblCalculatedRenewalFee.setText("N/A");
+                txtAmountPaid.setText("");
+                return;
+            }
             String duration = (String) cmbNewDuration.getSelectedItem();
             double fee = gymService.calculateRenewalFee(id, duration);
             lblCalculatedRenewalFee.setText("Rs. " + fee);
@@ -221,11 +237,12 @@ public class RenewMembershipPanel extends JPanel {
         try {
             List<Member> list = gymService.getMembersDueForRenewal();
             for (Member m : list) {
+                String expDisplay = m.getExpiryDate() != null ? m.getExpiryDate().toString() : "N/A";
                 tableModel.addRow(new Object[]{
                         m.getMemberId(),
                         m.getFullName(),
                         m.getMembership().getType(),
-                        m.getExpiryDate(),
+                        expDisplay,
                         m.getStatus()
                 });
             }

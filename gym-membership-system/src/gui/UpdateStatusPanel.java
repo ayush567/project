@@ -151,7 +151,7 @@ public class UpdateStatusPanel extends JPanel {
             Member m = gymService.getMember(id);
             lblName.setText(m.getFullName());
             lblCurrentStatus.setText(m.getStatus());
-            lblExpiryDate.setText(m.getExpiryDate().toString());
+            lblExpiryDate.setText(m.getExpiryDate() != null ? m.getExpiryDate().toString() : "N/A");
             cmbNewStatus.setSelectedItem(m.getStatus());
         } catch (GymException e) {
             lblName.setText("-");
@@ -180,11 +180,12 @@ public class UpdateStatusPanel extends JPanel {
         try {
             List<Member> list = gymService.getAllMembers();
             for (Member m : list) {
+                String expDisplay = m.getExpiryDate() != null ? m.getExpiryDate().toString() : "N/A";
                 tableModel.addRow(new Object[]{
                         m.getMemberId(),
                         m.getFullName(),
                         m.getMembership().getType(),
-                        m.getExpiryDate(),
+                        expDisplay,
                         m.getStatus()
                 });
             }

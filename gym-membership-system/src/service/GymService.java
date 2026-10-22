@@ -1,24 +1,30 @@
 package service;
 
+import database.AttendanceDAO;
 import database.MemberDAO;
 import exceptions.GymException;
 import exceptions.InvalidInputException;
 import exceptions.MemberNotFoundException;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import model.Attendance;
+import model.AttendanceFeeSummary;
 import model.Locker;
 import model.Member;
 import model.Membership;
 import model.Renewal;
 
-// Service Layer: Implements business logic, validations, and delegates to MemberDAO
+// Service Layer: Implements business logic, validations, and delegates to MemberDAO and AttendanceDAO
 public class GymService {
 
     private final MemberDAO memberDAO;
+    private final AttendanceDAO attendanceDAO;
 
     public GymService() {
         this.memberDAO = new MemberDAO();
+        this.attendanceDAO = new AttendanceDAO();
     }
 
     // Validates inputs and registers a new member
@@ -120,8 +126,15 @@ public class GymService {
                 throw new MemberNotFoundException("Member with ID '" + memberId + "' not found.");
             }
 
+            if (member.isOccasional()) {
+                throw new InvalidInputException("Occasional members do not have a renewal cycle.");
+            }
+
             // Update membership plan duration if specified
             if (duration != null && !duration.trim().isEmpty()) {
+                if ("Occasional".equalsIgnoreCase(duration.trim())) {
+                    throw new InvalidInputException("Cannot renew a fixed membership into an Occasional plan via renewal.");
+                }
                 member.getMembership().setDuration(duration.trim());
             }
 
@@ -188,6 +201,15 @@ public class GymService {
         }
     }
 
+    // Retrieves all occasional members
+    public List<Member> getOccasionalMembers() throws GymException {
+        try {
+            return memberDAO.getOccasionalMembers();
+        } catch (SQLException e) {
+            throw new GymException("Database error retrieving occasional members: " + e.getMessage(), e);
+        }
+    }
+
     // Searches members by category and keyword
     public List<Member> searchMembers(String criteria, String keyword) throws GymException {
         try {
@@ -197,7 +219,7 @@ public class GymService {
         }
     }
 
-    // Retrieves list of members who are due for renewal
+    // Retrieves list of members who are due for renewal (excludes occasional members)
     public List<Member> getMembersDueForRenewal() throws GymException {
         try {
             return memberDAO.getMembersDueForRenewal();
@@ -232,9 +254,125 @@ public class GymService {
 
     // Calculates renewal fee applying the plan's polymorphic discount
     public double calculateRenewalFee(String memberId, String duration) throws GymException {
+        if ("Occasional".equalsIgnoreCase(duration)) {
+            throw new InvalidInputException("Occasional plans do not have a renewal fee.");
+        }
         Member member = getMember(memberId);
+        if (member.isOccasional()) {
+            throw new InvalidInputException("Occasional members do not have a renewal cycle.");
+        }
         Membership m = MembershipFactory.createMembership(member.getMembership().getType(), duration);
         return m.calculateRenewalFee();
+    }
+
+    // =========================================================================
+    // ATTENDANCE & ON-DEMAND FEE CALCULATION BUSINESS LOGIC (OCCASIONAL MEMBERS)
+    // =========================================================================
+
+    // Marks attendance for an occasional member. If a record already exists, updates it.
+    // Returns true if an existing record was updated, false if a new record was inserted.
+    public boolean markAttendance(String memberId, LocalDate date, String status) throws GymException {
+        if (memberId == null || memberId.trim().isEmpty()) {
+            throw new InvalidInputException("Please select an occasional member.");
+        }
+        Member member = getMember(memberId.trim());
+        if (!member.isOccasional()) {
+            throw new InvalidInputException("Attendance can only be marked for members with 'Occasional' plan duration.");
+        }
+        if (date == null) {
+            throw new InvalidInputException("Attendance date is required.");
+        }
+        if (date.isAfter(LocalDate.now())) {
+            throw new InvalidInputException("Attendance cannot be marked for a future date: " + date);
+        }
+        if (status == null || (!status.equalsIgnoreCase("Present") && !status.equalsIgnoreCase("Absent"))) {
+            throw new InvalidInputException("Attendance status must be 'Present' or 'Absent'.");
+        }
+
+        String normalizedStatus = status.equalsIgnoreCase("Present") ? "Present" : "Absent";
+        Attendance attendance = new Attendance(member.getMemberId(), date, normalizedStatus, false);
+        return attendanceDAO.saveOrUpdateAttendance(attendance);
+    }
+
+    // Retrieves complete attendance history for a member
+    public List<Attendance> getMemberAttendanceHistory(String memberId) throws GymException {
+        if (memberId == null || memberId.trim().isEmpty()) {
+            throw new InvalidInputException("Member ID is required.");
+        }
+        return attendanceDAO.getAttendanceHistory(memberId.trim());
+    }
+
+    // Calculates fee till date for unpaid Present days of an occasional member
+    public AttendanceFeeSummary calculateFeeTillDate(String memberId, LocalDate tillDate) throws GymException {
+        if (memberId == null || memberId.trim().isEmpty()) {
+            throw new InvalidInputException("Please select an occasional member.");
+        }
+        Member member = getMember(memberId.trim());
+        if (!member.isOccasional()) {
+            throw new InvalidInputException("Fee till date can only be calculated for Occasional members.");
+        }
+        if (tillDate == null) {
+            throw new InvalidInputException("Till date is required.");
+        }
+        if (tillDate.isAfter(LocalDate.now())) {
+            throw new InvalidInputException("Till date cannot be in the future: " + tillDate);
+        }
+
+        List<Attendance> unpaidList = attendanceDAO.getUnpaidAttendanceUpTo(member.getMemberId(), tillDate);
+
+        List<LocalDate> presentDates = new ArrayList<>();
+        int absentCount = 0;
+        LocalDate earliestUnpaidDate = null;
+
+        for (Attendance att : unpaidList) {
+            if (earliestUnpaidDate == null) {
+                earliestUnpaidDate = att.getAttendanceDate();
+            }
+            if ("Present".equalsIgnoreCase(att.getStatus())) {
+                presentDates.add(att.getAttendanceDate());
+            } else if ("Absent".equalsIgnoreCase(att.getStatus())) {
+                absentCount++;
+            }
+        }
+
+        if (presentDates.isEmpty()) {
+            return null; // Signals nothing payable
+        }
+
+        double dailyRate = member.getMembership().getDailyRate();
+        double totalAmount = presentDates.size() * dailyRate;
+
+        return new AttendanceFeeSummary(
+                member.getMemberId(),
+                member.getFullName(),
+                member.getMembership().getType(),
+                earliestUnpaidDate,
+                tillDate,
+                presentDates,
+                presentDates.size(),
+                absentCount,
+                dailyRate,
+                totalAmount
+        );
+    }
+
+    // Marks unpaid attendance records up to till date as paid
+    public void markAttendanceAsPaid(String memberId, LocalDate tillDate) throws GymException {
+        if (memberId == null || memberId.trim().isEmpty()) {
+            throw new InvalidInputException("Member ID is required.");
+        }
+        Member member = getMember(memberId.trim());
+        if (!member.isOccasional()) {
+            throw new InvalidInputException("Payment can only be marked for Occasional members.");
+        }
+        if (tillDate == null) {
+            throw new InvalidInputException("Till date is required.");
+        }
+        if (tillDate.isAfter(LocalDate.now())) {
+            throw new InvalidInputException("Till date cannot be in the future: " + tillDate);
+        }
+
+        attendanceDAO.markAsPaid(member.getMemberId(), tillDate);
     }
 
     // Validates basic member attributes

@@ -5,7 +5,7 @@ import interfaces.Renewable;
 // Abstract base class representing a generic gym membership plan
 public abstract class Membership implements Renewable {
     private String type;
-    private String duration; // Monthly, Quarterly, Yearly
+    private String duration; // Monthly, Quarterly, Yearly, Occasional
     private double baseMonthlyRate;
 
     public Membership(String type, String duration, double baseMonthlyRate) {
@@ -44,6 +44,8 @@ public abstract class Membership implements Renewable {
             return 3;
         } else if ("Yearly".equalsIgnoreCase(duration)) {
             return 12;
+        } else if ("Occasional".equalsIgnoreCase(duration)) {
+            return 0; // Occasional has no duration in months
         }
         return 1; // Default is Monthly
     }
@@ -51,6 +53,9 @@ public abstract class Membership implements Renewable {
     // Abstract method overridden by subclasses (Polymorphism)
     @Override
     public abstract double calculateFee();
+
+    // Abstract method overridden by subclasses for daily attendance rate (Polymorphism)
+    public abstract double getDailyRate();
 
     // Abstract method overridden by subclasses for renewal discount
     @Override

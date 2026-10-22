@@ -94,15 +94,17 @@ public class ViewMembersPanel extends JPanel {
             List<Member> members = gymService.getAllMembers();
             for (Member m : members) {
                 String lockerDisplay = (m.getLocker() != null) ? m.getLocker().getLocationDisplay() : "None";
+                String feeDisplay = m.isOccasional() ? "Pay as you go" : String.valueOf(m.getMembershipFee());
+                String expDisplay = (m.getExpiryDate() != null) ? m.getExpiryDate().toString() : "N/A";
                 tableModel.addRow(new Object[]{
                         m.getMemberId(),
                         m.getFullName(),
                         m.getContactNumber(),
                         m.getMembership().getType(),
                         m.getMembership().getDuration(),
-                        m.getMembershipFee(),
+                        feeDisplay,
                         m.getStatus(),
-                        m.getExpiryDate(),
+                        expDisplay,
                         lockerDisplay
                 });
             }

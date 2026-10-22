@@ -6,6 +6,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,11 @@ public class MemberDAO {
                 psMember.setDouble(9, member.getMembershipFee());
                 psMember.setString(10, member.getTrainerName());
                 psMember.setDate(11, Date.valueOf(member.getJoiningDate()));
-                psMember.setDate(12, Date.valueOf(member.getExpiryDate()));
+                if (member.getExpiryDate() != null) {
+                    psMember.setDate(12, Date.valueOf(member.getExpiryDate()));
+                } else {
+                    psMember.setNull(12, Types.DATE);
+                }
                 psMember.setString(13, member.getStatus());
                 psMember.executeUpdate();
             }
@@ -94,6 +99,23 @@ public class MemberDAO {
         List<Member> list = new ArrayList<>();
         String sql = "SELECT m.*, l.locker_id, l.zone, l.`row_number`, l.locker_number " +
                      "FROM members m LEFT JOIN lockers l ON m.member_id = l.member_id " +
+                     "ORDER BY m.member_id ASC";
+
+        try (PreparedStatement ps = getConnection().prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapResultSetToMember(rs));
+            }
+        }
+        return list;
+    }
+
+    // READ: Retrieves all members enrolled under the Occasional plan duration
+    public List<Member> getOccasionalMembers() throws SQLException {
+        List<Member> list = new ArrayList<>();
+        String sql = "SELECT m.*, l.locker_id, l.zone, l.`row_number`, l.locker_number " +
+                     "FROM members m LEFT JOIN lockers l ON m.member_id = l.member_id " +
+                     "WHERE m.duration = 'Occasional' " +
                      "ORDER BY m.member_id ASC";
 
         try (PreparedStatement ps = getConnection().prepareStatement(sql);
@@ -288,12 +310,13 @@ public class MemberDAO {
         return list;
     }
 
-    // READ: Retrieves members who are due for renewal or expired
+    // READ: Retrieves members who are due for renewal or expired (excludes Occasional members)
     public List<Member> getMembersDueForRenewal() throws SQLException {
         List<Member> list = new ArrayList<>();
         String sql = "SELECT m.*, l.locker_id, l.zone, l.`row_number`, l.locker_number " +
                      "FROM members m LEFT JOIN lockers l ON m.member_id = l.member_id " +
-                     "WHERE m.status IN ('Due for Renewal', 'Expired') OR m.expiry_date <= CURRENT_DATE() " +
+                     "WHERE (m.status IN ('Due for Renewal', 'Expired') OR (m.expiry_date IS NOT NULL AND m.expiry_date <= CURRENT_DATE())) " +
+                     "AND m.duration != 'Occasional' " +
                      "ORDER BY m.expiry_date ASC";
 
         try (PreparedStatement ps = getConnection().prepareStatement(sql);
@@ -305,7 +328,7 @@ public class MemberDAO {
         return list;
     }
 
-    // DELETE: Removes a member record (cascades to locker and renewals in DB)
+    // DELETE: Removes a member record (cascades to locker, renewals, and attendance in DB)
     public boolean deleteMember(String memberId) throws SQLException {
         String sql = "DELETE FROM members WHERE member_id = ?";
         try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
@@ -356,7 +379,8 @@ public class MemberDAO {
         double fee = rs.getDouble("membership_fee");
         String trainer = rs.getString("trainer_name");
         LocalDate joinDate = rs.getDate("joining_date").toLocalDate();
-        LocalDate expDate = rs.getDate("expiry_date").toLocalDate();
+        Date expDateSql = rs.getDate("expiry_date");
+        LocalDate expDate = (expDateSql != null) ? expDateSql.toLocalDate() : null;
         String status = rs.getString("status");
 
         Membership membership;

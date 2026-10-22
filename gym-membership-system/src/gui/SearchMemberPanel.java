@@ -143,13 +143,14 @@ public class SearchMemberPanel extends JPanel {
             List<Member> results = gymService.searchMembers(criteria, keyword);
             for (Member m : results) {
                 String loc = (m.getLocker() != null) ? m.getLocker().getLocationDisplay() : "None";
+                String expDisplay = (m.getExpiryDate() != null) ? m.getExpiryDate().toString() : "N/A";
                 tableModel.addRow(new Object[]{
                         m.getMemberId(),
                         m.getFullName(),
                         m.getContactNumber(),
                         m.getMembership().getType(),
                         m.getStatus(),
-                        m.getExpiryDate(),
+                        expDisplay,
                         loc
                 });
             }

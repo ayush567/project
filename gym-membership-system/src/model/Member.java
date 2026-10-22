@@ -152,6 +152,11 @@ public class Member implements Searchable, Trackable {
         this.locker = locker;
     }
 
+    // Checks whether the member is enrolled under the Occasional duration plan
+    public boolean isOccasional() {
+        return membership != null && "Occasional".equalsIgnoreCase(membership.getDuration());
+    }
+
     // Searchable implementation: searches across key member attributes
     @Override
     public boolean matchesKeyword(String keyword) {
@@ -164,7 +169,8 @@ public class Member implements Searchable, Trackable {
                               (contactNumber != null && contactNumber.contains(lower)) ||
                               (status != null && status.toLowerCase().contains(lower));
 
-        boolean matchPlan = (membership != null && membership.getType().toLowerCase().contains(lower));
+        boolean matchPlan = (membership != null && (membership.getType().toLowerCase().contains(lower) ||
+                             membership.getDuration().toLowerCase().contains(lower)));
         boolean matchLocker = (locker != null && locker.getLocationDisplay().toLowerCase().contains(lower));
 
         return matchMember || matchPlan || matchLocker;
@@ -173,6 +179,7 @@ public class Member implements Searchable, Trackable {
     // Trackable implementation: returns a readable status overview
     @Override
     public String getTrackingSummary() {
-        return "Member: " + memberId + " (" + fullName + ") | Status: " + status + " | Expiry: " + expiryDate;
+        String exp = (expiryDate != null) ? expiryDate.toString() : "N/A";
+        return "Member: " + memberId + " (" + fullName + ") | Status: " + status + " | Expiry: " + exp;
     }
 }

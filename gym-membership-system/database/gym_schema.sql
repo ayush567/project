@@ -7,12 +7,14 @@ CREATE DATABASE IF NOT EXISTS gym_db;
 USE gym_db;
 
 -- 1. Drop existing tables if they exist (in reverse order of foreign keys)
+DROP TABLE IF EXISTS attendance;
 DROP TABLE IF EXISTS renewals;
 DROP TABLE IF EXISTS lockers;
 DROP TABLE IF EXISTS members;
 
 -- 2. Table: members
 -- Stores member personal info, membership plan, dates, trainer, and status
+-- expiry_date is NULLable to support Occasional (pay-as-you-go) members
 CREATE TABLE members (
     member_id VARCHAR(20) PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
@@ -25,7 +27,7 @@ CREATE TABLE members (
     membership_fee DOUBLE NOT NULL,
     trainer_name VARCHAR(100) DEFAULT 'None',
     joining_date DATE NOT NULL,
-    expiry_date DATE NOT NULL,
+    expiry_date DATE NULL,
     status VARCHAR(30) NOT NULL
 );
 
@@ -52,7 +54,19 @@ CREATE TABLE renewals (
     FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE
 );
 
--- 5. Optional Sample Data for Immediate Testing
+-- 5. Table: attendance
+-- Stores daily attendance records and payment tracking for Occasional members
+CREATE TABLE attendance (
+    attendance_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id VARCHAR(20) NOT NULL,
+    attendance_date DATE NOT NULL,
+    status VARCHAR(10) NOT NULL CHECK (status IN ('Present', 'Absent')),
+    paid TINYINT(1) DEFAULT 0,
+    UNIQUE KEY unique_member_attendance_date (member_id, attendance_date),
+    FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE
+);
+
+-- 6. Optional Sample Data for Immediate Testing
 INSERT INTO members (member_id, full_name, contact_number, emergency_contact_name, emergency_contact_number, address, membership_type, duration, membership_fee, trainer_name, joining_date, expiry_date, status)
 VALUES
 ('M1001', 'Rahul Sharma', '9876543210', 'Sunil Sharma', '9876543211', '12 Park Street, Mumbai', 'Premium', 'Yearly', 19200.0, 'Vikram Singh', '2025-01-10', '2026-01-10', 'Active'),

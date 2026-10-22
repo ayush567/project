@@ -76,7 +76,7 @@ public class RegisterMemberPanel extends JPanel {
         cmbMembershipType = new JComboBox<>(types);
         styleComboBox(cmbMembershipType);
 
-        String[] durations = {"Monthly", "Quarterly", "Yearly"};
+        String[] durations = {"Monthly", "Quarterly", "Yearly", "Occasional"};
         cmbDuration = new JComboBox<>(durations);
         styleComboBox(cmbDuration);
 
@@ -154,8 +154,12 @@ public class RegisterMemberPanel extends JPanel {
         try {
             String type = (String) cmbMembershipType.getSelectedItem();
             String dur = (String) cmbDuration.getSelectedItem();
-            double fee = gymService.calculateFee(type, dur);
-            lblCalculatedFee.setText("Rs. " + fee);
+            if ("Occasional".equalsIgnoreCase(dur)) {
+                lblCalculatedFee.setText("Pay as you go");
+            } else {
+                double fee = gymService.calculateFee(type, dur);
+                lblCalculatedFee.setText("Rs. " + fee);
+            }
         } catch (Exception e) {
             lblCalculatedFee.setText("Rs. 0.0");
         }
@@ -185,9 +189,12 @@ public class RegisterMemberPanel extends JPanel {
             String lockerNo = txtLockerNo.getText().trim();
 
             Membership membership = MembershipFactory.createMembership(type, duration);
-            int months = membership.getDurationMonths();
             LocalDate joiningDate = LocalDate.now();
-            LocalDate expiryDate = joiningDate.plusMonths(months);
+            LocalDate expiryDate = null;
+            if (!"Occasional".equalsIgnoreCase(duration)) {
+                int months = membership.getDurationMonths();
+                expiryDate = joiningDate.plusMonths(months);
+            }
 
             Locker locker = new Locker(memberId, zone, row, lockerNo);
 

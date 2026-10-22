@@ -41,6 +41,10 @@ public class MemberDetailsDialog extends JDialog {
         detailsPanel.setBorder(BorderFactory.createTitledBorder(
                 new LineBorder(Color.BLACK, 1), "Member Profile", 0, 0, null, Color.BLACK));
 
+        boolean isOccasional = member.isOccasional();
+        String feeDisplay = isOccasional ? "Pay as you go" : ("Rs. " + member.getMembershipFee());
+        String expDisplay = member.getExpiryDate() != null ? member.getExpiryDate().toString() : "N/A";
+
         addDetailRow(detailsPanel, "Member ID:", member.getMemberId());
         addDetailRow(detailsPanel, "Full Name:", member.getFullName());
         addDetailRow(detailsPanel, "Contact Number:", member.getContactNumber());
@@ -48,11 +52,11 @@ public class MemberDetailsDialog extends JDialog {
         addDetailRow(detailsPanel, "Address:", member.getAddress());
         addDetailRow(detailsPanel, "Membership Plan:", member.getMembership().getType());
         addDetailRow(detailsPanel, "Plan Duration:", member.getMembership().getDuration());
-        addDetailRow(detailsPanel, "Membership Fee:", "Rs. " + member.getMembershipFee());
+        addDetailRow(detailsPanel, "Membership Fee:", feeDisplay);
         addDetailRow(detailsPanel, "Assigned Trainer:", member.getTrainerName());
         addDetailRow(detailsPanel, "Locker Assigned:", (member.getLocker() != null ? member.getLocker().getLocationDisplay() : "None"));
         addDetailRow(detailsPanel, "Joining Date:", member.getJoiningDate().toString());
-        addDetailRow(detailsPanel, "Expiry Date:", member.getExpiryDate().toString());
+        addDetailRow(detailsPanel, "Expiry Date:", expDisplay);
 
         // Status Panel
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
